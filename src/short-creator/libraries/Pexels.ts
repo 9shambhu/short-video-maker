@@ -1,70 +1,70 @@
-import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
+import axios from "axios";
+import fs from "fs-extra";
+import path from "path";
+import { logger } from "../../config";
 
 export class Pexels {
   private apiKey: string;
 
-  constructor() {
-    this.apiKey = process.env.PEXELS_API_KEY || '';
-    if (!this.apiKey) {
-      throw new Error('PEXELS_API_KEY environment variable is required');
-    }
+  constructor(apiKey: string) {
+    this.apiKey = apiKey;
   }
 
-  async getImages(searchTerm: string, count: number = 60): Promise<string[]> {
+  async downloadImages(
+    searchTerm: string,
+    count: number,
+    outputPath: string
+  ): Promise<string[]> {
+    logger.info(`📸 Searching Pexels for "${searchTerm}" images...`);
+
     try {
-      console.log(`📸 Fetching ${count} B&W images from Pexels for: "${searchTerm}"`);
-      
-      const response = await axios.get('https://api.pexels.com/v1/photos/search', {
+      // Use Pexels PHOTOS API (not videos)
+      const response = await axios.get("https://api.pexels.com/v1/photos/search", {
         params: {
           query: `${searchTerm} black white portrait vintage historical`,
           per_page: Math.min(count, 80),
-          orientation: 'portrait',
-          size: 'large'
+          orientation: "portrait",
+          size: "large",
         },
         headers: {
-          Authorization: this.apiKey
-        }
+          Authorization: this.apiKey,
+        },
       });
 
       const photos = response.data.photos.slice(0, count);
-      console.log(`✅ Found ${photos.length} images`);
-      
-      const outputDir = 'temp/images';
-      if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-      }
+      logger.info(`✅ Found ${photos.length} images`);
 
-      const imagePaths: string[] = [];
-      
+      // Create output directory
+      fs.ensureDirSync(outputPath);
+
+      const downloadedPaths: string[] = [];
+
       for (let i = 0; i < photos.length; i++) {
         const photo = photos[i];
         const imageUrl = photo.src.large || photo.src.original;
-        const fileName = `image_${String(i + 1).padStart(3, '0')}.jpg`;
-        const outputPath = path.join(outputDir, fileName);
+        const fileName = `image_${String(i + 1).padStart(3, "0")}.jpg`;
+        const filePath = path.join(outputPath, fileName);
 
         try {
-          console.log(`⬇️ Downloading ${fileName}...`);
-          const imgResponse = await axios.get(imageUrl, {
-            responseType: 'arraybuffer'
+          logger.info(`⬇️ Downloading ${fileName}...`);
+          const imageResponse = await axios.get(imageUrl, {
+            responseType: "arraybuffer",
           });
-          
-          fs.writeFileSync(outputPath, imgResponse.data);
-          imagePaths.push(outputPath);
-          
-          await new Promise(resolve => setTimeout(resolve, 150));
-          
-        } catch (err) {
-          console.error(`❌ Failed to download ${fileName}`);
+
+          fs.writeFileSync(filePath, imageResponse.data);
+          downloadedPaths.push(filePath);
+
+          // Small delay to avoid rate limiting
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        } catch (error) {
+          logger.error(`❌ Failed to download ${fileName}: ${error}`);
         }
       }
 
-      console.log(`✅ Downloaded ${imagePaths.length} images`);
-      return imagePaths;
-      
+      logger.info(`✅ Downloaded ${downloadedPaths.length} images`);
+      return downloadedPaths;
     } catch (error: any) {
-      console.error('❌ Pexels API Error:', error.response?.data || error.message);
+      logger.error(`❌ Pexels API error: ${error.response?.data || error.message}`);
       throw error;
     }
   }
