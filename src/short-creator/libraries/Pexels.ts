@@ -12,6 +12,7 @@ export class Pexels {
     }
   }
 
+  // CHANGED: getVideo() → getImages()
   async getImages(searchTerm: string, count: number = 60): Promise<string[]> {
     try {
       console.log(`📸 Fetching ${count} B&W images from Pexels for: "${searchTerm}"`);
