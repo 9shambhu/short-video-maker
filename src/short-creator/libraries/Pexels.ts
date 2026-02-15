@@ -12,12 +12,10 @@ export class Pexels {
     }
   }
 
-  // CHANGED: getVideo() → getImages()
   async getImages(searchTerm: string, count: number = 60): Promise<string[]> {
     try {
       console.log(`📸 Fetching ${count} B&W images from Pexels for: "${searchTerm}"`);
       
-      // Use Pexels PHOTOS API (not videos)
       const response = await axios.get('https://api.pexels.com/v1/photos/search', {
         params: {
           query: `${searchTerm} black white portrait vintage historical`,
@@ -33,7 +31,6 @@ export class Pexels {
       const photos = response.data.photos.slice(0, count);
       console.log(`✅ Found ${photos.length} images`);
       
-      // Download images
       const outputDir = 'temp/images';
       if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
@@ -56,7 +53,7 @@ export class Pexels {
           fs.writeFileSync(outputPath, imgResponse.data);
           imagePaths.push(outputPath);
           
-          await new Promise(resolve => setTimeout(resolve, 150)); // Rate limit
+          await new Promise(resolve => setTimeout(resolve, 150));
           
         } catch (err) {
           console.error(`❌ Failed to download ${fileName}`);
